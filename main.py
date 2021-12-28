@@ -28,7 +28,7 @@ secret = secret.replace("\n", "")
 id = id.replace("\n", "")
 user = user.replace("\n", "")
 
-print("Discord Bot Token: "+token+"\n Reddit Client ID: "+id+"\n Reddit Client Secret: "+secret+"\n Reddit Client Token"+user)
+print("Discord Bot Token: "+token+"\n Reddit Client ID: "+id+"\n Reddit Client Secret: "+secret+"\n Reddit Client Token: "+user)
 
 reddit = praw.Reddit(client_id=id, client_secret=secret,user_agent=user)
 

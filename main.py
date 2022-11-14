@@ -1,36 +1,20 @@
 import asyncio
 import re
 import discord
-import praw
 import youtube_dl
 from discord.ext import commands
 
 tokenFile = open("BOT TOKEN.txt", "r")
 
 token = ""
-id = ""
-secret = ""
-user = ""
 
 lines = tokenFile.readlines()
 
 token = token.join(lines[1:2])
-id = id.join(lines[3:4])
-secret = secret.join(lines[5:6])
-user = user.join(lines[7:8])
 
 re.sub(r'[^\w]', '', token)
-re.sub(r'[^\w]', '', id)
-re.sub(r'[^\w]', '', secret)
-re.sub(r'[^\w]', '', user)
 
-secret = secret.replace("\n", "")
-id = id.replace("\n", "")
-user = user.replace("\n", "")
-
-print("Discord Bot Token: "+token+"\n Reddit Client ID: "+id+"\n Reddit Client Secret: "+secret+"\n Reddit Client Token: "+user)
-
-reddit = praw.Reddit(client_id=id, client_secret=secret,user_agent=user)
+print("Discord Bot Token: " + token)
 
 ytdl_format_options = {
     'format': 'bestaudio/best',
@@ -51,6 +35,7 @@ ytdl = youtube_dl.YoutubeDL(ytdl_format_options)
 ffmpeg_options = {
     'options': '-vn'
 }
+
 
 class YTDLSource(discord.PCMVolumeTransformer):
     def __init__(self, source, *, data, volume=0.5):
@@ -76,27 +61,30 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
 songs = asyncio.Queue()
 channels = asyncio.Queue()
-next = asyncio.Event()
-bot = commands.Bot(command_prefix="!")
+goNext = asyncio.Event()
 
 
-@bot.event
-async def on_ready():
-    print('Logged in as {0} ({0.id})'.format(bot.user))
-    print('------')
+class Bot(commands.Bot):
+    async def setup_hook(self):
+        self.loop.create_task(audio())
+        await self.add_cog(Commands(self))
+
+    async def on_ready(self):
+        print("ready");
+        await MusicBot.change_presence(activity=discord.Game(name='!help for commands'))
 
 
 async def audio():
     while True:
-        next.clear()
+        goNext.clear()
         song = await songs.get()
         channel = await channels.get()
         channel.play(song, after=toggle)
-        await next.wait()
+        await goNext.wait()
 
 
 def toggle(self):
-    bot.loop.call_soon_threadsafe(next.set)
+    MusicBot.loop.call_soon_threadsafe(goNext.set)
 
 
 class Commands(commands.Cog):
@@ -104,17 +92,8 @@ class Commands(commands.Cog):
         self.bot = bot
 
     @commands.command()
-    async def meme(self, ctx):
-        link = "https://cdn.discordapp.com/attachments/923825647468568577/923829145505525801/unknown.png"
-        for submission in reddit.subreddit("shitposting+dankmemes+memes").random_rising():
-            link = submission.url_overridden_by_dest
-            if "i.redd.it" in link:
-                break
-        await ctx.send(link)
-
-    @commands.command()
     async def p(self, ctx, *, url):
-        """Streams from a url (same as yt, but doesn't predownload)"""
+        """Plays the requested YouTube URL or query"""
         player = await YTDLSource.from_url(url, loop=self.bot.loop, stream=True)
         await songs.put(player)
         await channels.put(ctx.voice_client)
@@ -130,13 +109,16 @@ class Commands(commands.Cog):
             await ctx.send("You need to be in a voice channel for this")
 
     @commands.command()
-    async def j(self, ctx, *, channel: discord.VoiceChannel):
+    async def j(self, ctx):
         """Joins a voice channel"""
+        # await MusicBot.change_presence(activity=discord.Game(name='!help for commands'))
 
-        if ctx.voice_client is not None:
-            return await ctx.voice_client.move_to(channel)
-
-        await channel.connect()
+        if ctx.voice_client is None:
+            if ctx.author.voice:
+                await ctx.author.voice.channel.connect()
+            else:
+                await ctx.send("You are not connected to a voice channel.")
+                raise commands.CommandError("Author not connected to a voice channel.")
 
     @commands.command()
     async def v(self, ctx, volume: int):
@@ -185,6 +167,6 @@ class Commands(commands.Cog):
                 raise commands.CommandError("Author not connected to a voice channel.")
 
 
-bot.add_cog(Commands(bot))
-bot.loop.create_task(audio())
-bot.run(token)
+intents = discord.Intents.all()
+MusicBot = Bot(command_prefix="!", intents=intents)
+MusicBot.run(token)

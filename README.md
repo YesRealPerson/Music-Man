@@ -1,16 +1,18 @@
-# Discord Music Bot
-- Plays music and uploads images from reddit
+#Discord youtube video player
 
-use pip to install all of these except FFMPEG and the tokens, if you don't know what that is there is a magic tool called google
+- !help for help
+- !d    Stops and disconnects the bot from voice
+- !fs   Skips the song currently playing
+- !j    Joins a voice channel
+- !p    Plays the requested YouTube URL or query
+- !r    Resumes playback
+- !s    Pauses playback
+- !v    Changes the player's volume
 
-# REQUIREMENTS
-- discord.py
+#Requirements
+
+- Python (Obviously)
+- PyNaCl
+- asyncio
+- discord
 - youtube_dl
-- FFMPEG
-- Discord bot token
-  - Make one from the developer portal
-
-# OPTIONAL
-- praw
-- Reddit bot tokens
-  - Make one at https://reddit.com/prefs/apps/

@@ -1,7 +1,1 @@
 (Put token below)
-
-(Put client id below)
-
-(Put client secret below)
-
-(Put client name below)

@@ -14,48 +14,64 @@ const commands = [
             required: true,
         }],
     },
-    {
-        name: 'p',
-        description: 'alternate for /play',
-        options:[ {
-            name: 'url',
-            type: 3,
-            description: 'the url or name of the video/song you want to play',
-            required: true,
-        }],
-    },
+    // {
+    //     name: 'p',
+    //     description: 'alternate for /play',
+    //     options:[ {
+    //         name: 'url',
+    //         type: 3,
+    //         description: 'the url or name of the video/song you want to play',
+    //         required: true,
+    //     }],
+    // },
     {
         name: 'disconnect',
         description: 'leaves the audio channel',
     },
-    {
-        name: 'd',
-        description: 'alternate for /disconnect',
-    },
+    // {
+    //     name: 'd',
+    //     description: 'alternate for /disconnect',
+    // },
     {
         name: 'pause',
         description: 'pauses audio playback',
     },
-    {
-        name: 'pa',
-        description: 'alternate for /pause',
-    },
+    // {
+    //     name: 'pa',
+    //     description: 'alternate for /pause',
+    // },
     {
         name: 'join',
         description: 'joins the voice channel of the author',
     },
-    {
-        name: 'j',
-        description: 'alternate for /join',
-    },
+    // {
+    //     name: 'j',
+    //     description: 'alternate for /join',
+    // },
     {
         name: 'queue',
         description: 'sends the current queue',
     },
+    // {
+    //     name: 'q',
+    //     description: 'alternate for /queue',
+    // },
     {
-        name: 'q',
-        description: 'alternate for /queue',
+        name: 'skip',
+        description: 'skips the current song',
     },
+    // {
+    //     name: 'fs',
+    //     description: 'alternate for /skip',
+    // },
+    {
+        name: 'repeat',
+        description: 'repeats the current queue',
+    },
+    // {
+    //     name: 'r',
+    //     description: 'alternate for /repeat',
+    // },
 ];
 
 require('dotenv').config()

@@ -2,7 +2,7 @@
 
 const youtubedl = require('youtube-dl-exec');
 
-const { createReadStream } = require('node:fs');
+const fs = require('fs');
 
 const path = require('path');
 
@@ -35,11 +35,15 @@ const client = new Client(
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
   });
 
-const queueName = [];
+let queueName = [];
 
-const queueVideo = [];
+let queueVideo = [];
 
-var currentAudio;
+let queuePath = [];
+
+let currentSong = "";
+
+let repeat = false;
 
 const options = {
   'format': 'bestaudio/best',
@@ -66,6 +70,7 @@ const downloadResource = (url) => {
         id = title[0];
         title = title.slice(1).join(".");
         queueName.push(title);
+        queuePath.push(path.join(__dirname, 'temp/' + id + ".opus"));
         const resource = createAudioResource(
           path.join(__dirname, 'temp/' + id + ".opus"),
           {
@@ -89,23 +94,45 @@ const player = createAudioPlayer({
   }
 });
 
-const playNext = (interaction) => {
-  const connection = getVoiceConnection(interaction.guildId);
-  player.play(queueVideo[0]);
-  connection.subscribe(player);
+const playNext = async (connection) => {
+  try{
+    currentSong = queueName[0];
+    await player.play(queueVideo[0]);
+    await connection.subscribe(player);
+  }catch(err){
+    console.log(err);
+    // console.log("reached end of queue");
+  }
 };
 
+const clearQueue = () => {
+  queueName = [];
+  queueVideo = [];
+}
+
 player.on(AudioPlayerStatus.Playing, () => {
-  console.log('The audio player is playing!');
+  // console.log('The audio player is playing!');
 });
 
-player.on(AudioPlayerStatus.Idle, () => {
-  console.log('The audio player is idle!');
+player.on(AudioPlayerStatus.Idle, async () => {
+  // console.log('The audio player is idle!');
+  fs.unlink(queuePath[0], err => {
+    console.log(err);
+  });
+  if(repeat){
+    console.log("readding song");
+    await downloadResource(currentSong);
+  }
+  currentSong = "";
   queueName.shift();
   queueVideo.shift();
+  queuePath.shift();
+  // console.log(queueName);
+  // console.log(queueVideo);
   var connections = getVoiceConnections();
-  console.log(connections);
-  playNext();
+  connections.forEach(connection => {
+    playNext(connection);
+  });
 });
 
 //bot process
@@ -115,7 +142,7 @@ client.on('ready', () => {
 });
 
 client.on('interactionCreate', async interaction => {
-  console.log("recieved interaction");
+  // console.log("recieved interaction");
 
   const join = async (interaction) => {
     let channelInfo = interaction.member.voice.channel
@@ -151,8 +178,9 @@ client.on('interactionCreate', async interaction => {
       await player.stop();
       await connection.destroy();
       await interaction.reply("Disconnecting from the channel");
+      clearQueue();
     } catch (error) {
-      console.log(error);
+      // console.log(error);
       await interaction.reply("Not in a channel");
     }
 
@@ -169,13 +197,9 @@ client.on('interactionCreate', async interaction => {
   }
 
   else if (interaction.commandName === 'play' || interaction.commandName === 'p') {
-    //push URL to queueURL element
-    //push name to queueName element
-    //use shift to remove after playing
     let channelInfo = interaction.member.voice.channel;
     if (channelInfo != undefined) {
       await interaction.reply(`Joining ${channelInfo.name}`);
-      // const connection = await join(interaction);
       await join(interaction);
       await interaction.editReply(`Joined ${channelInfo.name}`);
 
@@ -191,14 +215,14 @@ client.on('interactionCreate', async interaction => {
 
       // connection.subscribe(player);
 
-      playNext(interaction);
+      playNext(getVoiceConnection(interaction.guildId));
     } else {
       await interaction.reply(`You need to be in a voice channel`);
     }
   }
 
   else if (interaction.commandName === 'queue' || interaction.commandName === 'q') {
-    let queueList = "Up next:";
+    let queueList = "Currently playing: "+currentSong+"\nUp next:";
     let i = 0;
     let none = true;
     queueName.forEach(n => {
@@ -209,9 +233,25 @@ client.on('interactionCreate', async interaction => {
       i++;
     });
     if (none) {
-      queueList = "No songs in queue";
+      queueList = "Currently playing: "+currentSong+"\nNo songs in queue";
     }
     interaction.reply(queueList);
+  }
+
+  else if (interaction.commandName === 'skip' || interaction.commandName === 'fs'){
+    const connection = getVoiceConnection(interaction.guildId);
+    player.stop();
+    playNext(connection);
+    await interaction.reply('Skipped current song');
+  }
+
+  else if (interaction.commandName === 'repeat' || interaction.commandName === 'r'){
+    repeat = !repeat;
+    if(repeat){
+      await interaction.reply('Now repeating the current song list');
+    }else{
+      await interaction.reply('No longer repeating the current song list');
+    } 
   }
 
   else if (interaction.commandName === 'test') {

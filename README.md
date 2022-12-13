@@ -1,3 +1,5 @@
+Likely will no longer be updated
+
 #Discord youtube video player
 
 - !help for help

@@ -6,19 +6,31 @@ const commands = [
     },
     {
         name: 'play',
-        description: 'plays audio \n /play {youtube url}'
+        description: 'plays audio',
+        options:[ {
+            name: 'url',
+            type: 3,
+            description: 'the url or name of the video/song you want to play',
+            required: true,
+        }],
     },
     {
         name: 'p',
         description: 'alternate for /play',
+        options:[ {
+            name: 'url',
+            type: 3,
+            description: 'the url or name of the video/song you want to play',
+            required: true,
+        }],
     },
     {
-        name: 'leave',
+        name: 'disconnect',
         description: 'leaves the audio channel',
     },
     {
-        name: 'l',
-        description: 'alternate for /leave',
+        name: 'd',
+        description: 'alternate for /disconnect',
     },
     {
         name: 'pause',

@@ -1,2 +1,4 @@
 .env
 dependencyCheck.js
+test*
+*.opus

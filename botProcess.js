@@ -1,5 +1,6 @@
 //TODO
-//MAKE ALL MESSAGES INTO EMBEDS
+//ADD COMMENTS TO CODE 
+//CLEAN UP
 
 // library setup
 
@@ -109,7 +110,6 @@ const player = createAudioPlayer({
 
 const playNext = async (connection) => {
   try {
-    console.log(queueId);
     currentSong = queueName[0];
     client.user.setActivity(queueName[0], { type: ActivityType.Playing });
     currentID = queueId[0];
@@ -119,8 +119,6 @@ const playNext = async (connection) => {
     currentSong = "none";
     client.user.setActivity('/help for commands!', { type: ActivityType.Playing });
     currentID = "none"
-    // console.log(err);
-    // console.log("reached end of queue");
   }
 };
 
@@ -131,31 +129,33 @@ const clearQueue = () => {
 
 const garbageCollector = async (path, attempts) => {
   if (attempts < 5) {
-    console.log(path);
     await new Promise(r => setTimeout(r, 2500));
     try {
-      fs.unlink(path, err => {
+      fs.unlink(path, (err => {
         if (err) {
           garbageCollector(path, attempts + 1);
+        }else{
+          // console.log(path+" deleted sucessfully");
         }
-      });
+      }));
     } catch (err) {
       console.log(err);
     }
   }
-
-
+  else{
+    // console.log(path+" failed to delete");
+  }
 }
 
 player.on(AudioPlayerStatus.Idle, async () => {
-  // console.log('The audio player is idle!');
   fs.unlink(queuePath[0], err => {
     if (err) {
       garbageCollector(queuePath[0], 0);
+    }else{
+      // console.log(queuePath[0]+" deleted sucessfully");
     }
   });
   if (repeat) {
-    // console.log("readding song");
     await downloadResource(currentID);
   }
   currentSong = "none";
@@ -165,8 +165,6 @@ player.on(AudioPlayerStatus.Idle, async () => {
   queueVideo.shift();
   queuePath.shift();
   queueId.shift();
-  // console.log(queueName);
-  // console.log(queueVideo);
   var connections = getVoiceConnections();
   connections.forEach(connection => {
     playNext(connection);
@@ -181,8 +179,6 @@ client.on('ready', () => {
 });
 
 client.on('interactionCreate', async interaction => {
-  // console.log("recieved interaction");
-
   const join = async (interaction) => {
     let channelInfo = interaction.member.voice.channel
     const connection = joinVoiceChannel({
@@ -357,7 +353,6 @@ client.on('interactionCreate', async interaction => {
   }
 
   else if (interaction.commandName === 'test') {
-    console.log("test");
     const testEmbed = new EmbedBuilder()
       .setColor(0x0099FF)
       .setTitle('Testing')

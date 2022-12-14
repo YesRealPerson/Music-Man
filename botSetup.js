@@ -72,6 +72,14 @@ const commands = [
     //     name: 'r',
     //     description: 'alternate for /repeat',
     // },
+    {
+        name: 'help',
+        description: 'sends the information about all commands',
+    },
+    // {
+    //     name: 'h',
+    //     description: 'alternate for /help',
+    // },
 ];
 
 require('dotenv').config()

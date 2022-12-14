@@ -143,13 +143,6 @@ const playNext = async (connection) => {
   }
 };
 
-// empties the queue (very self-explanatory)
-const clearQueue = () => {
-  currentID = "";
-  currentSong = "";
-  queue = [];
-}
-
 // collects garbage
 // this function is usually called when original garbage collection fails, tries an additional 5 times until erroring out
 const garbageCollector = async (path, attempts) => {
@@ -298,11 +291,11 @@ client.on('interactionCreate', async interaction => {
       const connection = getVoiceConnection(interaction.guildId);
       await players[interaction.guildId].player.stop();
       await connection.destroy();
+      delete players[interaction.guildId];
       let disconnectEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
         .setTitle("Disconnected");
       await interaction.reply({ embeds: [disconnectEmbed] });
-      clearQueue();
     } catch (error) {
       let disconnectEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
@@ -383,6 +376,10 @@ client.on('interactionCreate', async interaction => {
   //queue command
   else if (interaction.commandName === 'queue' || interaction.commandName === 'q') {
     let player = players[interaction.guildId];
+    let toggle = 'off';
+    if(player.repeat){
+      toggle = 'on';
+    }
     let queueList = "\n**Currently playing:**  " + player.currentSong + "\n\nUp next:";
     let i = 0;
     let none = true;
@@ -395,12 +392,12 @@ client.on('interactionCreate', async interaction => {
       i++;
     });
     if (none) {
-      queueList = "\n**Currently playing:**  " + currentSong + "\n\nNo songs in queue";
+      queueList = "\n**Currently playing:**  " + player.currentSong + "\n\nNo songs in queue";
     }
     let queueEmbed = new EmbedBuilder()
       .setColor(0x0099FF)
       .setTitle("Queue")
-      .setDescription(queueList);
+      .setDescription(queueList + "\n\nRepeat is " + '**' + toggle + '**');
     interaction.reply({ embeds: [queueEmbed] });
   }
 

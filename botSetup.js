@@ -1,9 +1,9 @@
 const {REST, Routes} = require('discord.js');
 const commands = [
-    {
-        name: 'test',
-        description: 'test command',
-    },
+    // {
+    //     name: 'test',
+    //     description: 'test command',
+    // },
     {
         name: 'play',
         description: 'plays audio',

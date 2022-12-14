@@ -40,22 +40,9 @@ const client = new Client(
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
   });
 
-// variable setup
-
-// queues
-let queue = [];
-
-// currently playing info
-let currentSong = "none";
-
-let currentID = "none";
-
-// repeat mode
-let repeat = false;
-
 // yt-dl setup
 
-const downloadResource = (url) => {
+const downloadResource = (url,player) => {
   // get current millis since 1970
   let currentTime = new Date().getTime();
 
@@ -113,12 +100,13 @@ const downloadResource = (url) => {
           'resource': resource,
         };
         // push song of video to queue
-        queue.push(song);
+        player.queue.push(song);
       }).then(() => {
         // send success
         resolve();
       });
     } catch (error) {
+      console.log(error);
       // error send unsuccessful
       reject(error);
     }
@@ -127,33 +115,31 @@ const downloadResource = (url) => {
 
 // player setup
 
-const player = createAudioPlayer({
-  behaviors: {
-    noSubscriber: NoSubscriberBehavior.Pause,
-  }
-});
+let players = {};
 
 // play the next song
 const playNext = async (connection) => {
+  let player = players[connection.joinConfig.guildId];
   try {
     // set current song and id to first song in queue
-    currentSong = queue[0].title;
-    currentID = queue[0].id;
+    player.currentSong = player.queue[0].title;
+    player.currentID = player.queue[0].id;
     // set activity to Playing {name of video}
-    client.user.setActivity(currentSong, { type: ActivityType.Playing });
+    // client.user.setActivity(currentSong, { type: ActivityType.Playing });
     // send resource from first song in queue to player
-    await player.play(queue[0].resource);
+    await player.player.play(player.queue[0].resource);
     // send player to current connection
-    await connection.subscribe(player);
+    await connection.subscribe(player.player);
   } catch (err) {
+    console.log(err);
     // generally the error occurs when there is no song object in the array
     // therefore we can assume there are no songs left in queue
 
     // set current song and id to none
-    currentSong = "none";
-    currentID = "none"
+    player.currentSong = "none";
+    player.currentID = "none"
     // set activity to default
-    client.user.setActivity('/help for commands!', { type: ActivityType.Playing });
+    // client.user.setActivity('/help for commands!', { type: ActivityType.Playing });
   }
 };
 
@@ -174,7 +160,11 @@ const garbageCollector = async (path, attempts) => {
       fs.unlink(path, (err => {
         if (err) {
           // if unsuccessful retry
-          garbageCollector(path, attempts + 1);
+          try{
+            garbageCollector(path, attempts + 1);
+          }catch(err){
+            console.log(err);
+          }
         } else {
           // if successful don't need to do anything
           // console.log(path+" deleted sucessfully");
@@ -192,42 +182,6 @@ const garbageCollector = async (path, attempts) => {
   }
 }
 
-// when player goes idle (no sound playing) run this
-player.on(AudioPlayerStatus.Idle, async () => {
-  console.log("idle");
-  // delete old audio file
-  fs.unlink(queue[0].path, err => {
-    if (err) {
-      // if failed to delete
-      // let garbage collector try again
-      garbageCollector(queue[0].path, 0);
-    } else {
-      // success
-      // console.log(queue[0].path+" deleted sucessfully");
-    }
-  });
-
-  // if repeat mode is on send current song back to the end of the queue
-  if (repeat) {
-    await downloadResource(currentID);
-  }
-
-  // set current song and id, and activity to default
-  currentSong = "none";
-  currentID = "none";
-  client.user.setActivity('/help for commands!', { type: ActivityType.Playing });
-
-  // remove first element from array
-  queue.shift();
-
-  // get connections and play next song for each one
-  var connections = getVoiceConnections();
-  connections.forEach(connection => {
-    console.log(connection.joinConfig.guildId);
-    playNext(connection);
-  });
-});
-
 // bot process
 
 // when bot is ready
@@ -240,6 +194,52 @@ client.on('ready', () => {
 
 // when someone interacts with the bot
 client.on('interactionCreate', async interaction => {
+  //if new guild setup player
+  if (players[interaction.guildId] == undefined) {
+    // when player goes idle (no sound playing) run this
+    let player = createAudioPlayer({
+      behaviors: {
+        noSubscriber: NoSubscriberBehavior.Pause,
+      }
+    });
+    player.on(AudioPlayerStatus.Idle, async () => {
+      let info = players[interaction.guildId];
+      console.log("idle");
+      // delete old audio file
+      fs.unlink(info.queue[0].path, err => {
+        if (err) {
+          // if failed to delete
+          // let garbage collector try again
+          garbageCollector(info.queue[0].path, 0);
+        }
+      });
+
+      // if repeat mode is on send current song back to the end of the queue
+      if (info.repeat) {
+        await downloadResource(info.currentID, info);
+      }
+
+      // set current song and id, and activity to default
+      info.currentSong = "none";
+      info.currentID = "none";
+      // client.user.setActivity('/help for commands!', { type: ActivityType.Playing });
+
+      // remove first element from array
+      info.queue.shift();
+
+      // get connections and play next song for each one
+      let connection = getVoiceConnection(interaction.guildId);
+      playNext(connection);
+    });
+    players[interaction.guildId] = {
+      'player': player,
+      'currentSong': "none",
+      'currentID': "none",
+      'queue': [],
+      'repeat': false,
+    }
+  }
+
   // join function
   const join = async (channelInfo) => {
     // create new connection info 
@@ -296,7 +296,7 @@ client.on('interactionCreate', async interaction => {
   else if (interaction.commandName === 'disconnect' || interaction.commandName === 'd') {
     try {
       const connection = getVoiceConnection(interaction.guildId);
-      await player.stop();
+      await players[interaction.guildId].player.stop();
       await connection.destroy();
       let disconnectEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
@@ -315,11 +315,11 @@ client.on('interactionCreate', async interaction => {
   // pause command
   else if (interaction.commandName === 'pause' || interaction.commandName === 'pa') {
     //unpauses player and returns if successful
-    if (!player.unpause()) {
+    if (!players[interaction.guildId].player.unpause()) {
       //unsuccessful so pause playback
-      await player.pause();
+      await players[interaction.guildId].player.pause();
       //set user activity
-      client.user.setActivity('PLAYBACK PAUSED', { type: ActivityType.Playing });
+      // client.user.setActivity('PLAYBACK PAUSED', { type: ActivityType.Playing });
       //create pause message
       let pauseEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
@@ -331,7 +331,7 @@ client.on('interactionCreate', async interaction => {
       //successful create and send pause message
 
       //set user activity
-      client.user.setActivity(currentSong, { type: ActivityType.Playing });
+      // client.user.setActivity(currentSong, { type: ActivityType.Playing });
 
       let pauseEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
@@ -343,6 +343,7 @@ client.on('interactionCreate', async interaction => {
   // play command
   else if (interaction.commandName === 'play' || interaction.commandName === 'p') {
     let channelInfo = interaction.member.voice.channel;
+    let player = players[interaction.guildId];
     if (channelInfo != undefined) {
       let playEmbed = new EmbedBuilder()
         .setColor(0x0099FF)
@@ -362,11 +363,11 @@ client.on('interactionCreate', async interaction => {
         .setDescription("Please wait...");
       await interaction.editReply({ embeds: [playEmbed] });
 
-      await downloadResource(toPlay).then(async () => {
+      await downloadResource(toPlay, player).then(async () => {
         playEmbed = new EmbedBuilder()
           .setColor(0x0099FF)
-          .setTitle("Added " + queue[queue.length - 1].title + " to queue")
-          .setURL("https://www.youtube.com/watch?v=" + queue[queue.length - 1].id);
+          .setTitle("Added " + player.queue[player.queue.length - 1].title + " to queue")
+          .setURL("https://www.youtube.com/watch?v=" + player.queue[player.queue.length - 1].id);
         await interaction.editReply({ embeds: [playEmbed] });
       });
 
@@ -381,10 +382,11 @@ client.on('interactionCreate', async interaction => {
 
   //queue command
   else if (interaction.commandName === 'queue' || interaction.commandName === 'q') {
-    let queueList = "\n**Currently playing:**  " + currentSong + "\n\nUp next:";
+    let player = players[interaction.guildId];
+    let queueList = "\n**Currently playing:**  " + player.currentSong + "\n\nUp next:";
     let i = 0;
     let none = true;
-    queue.forEach(n => {
+    player.queue.forEach(n => {
       n = n.title;
       if (i != 0) {
         queueList += `**\n${i}.** ${n}`;
@@ -406,12 +408,8 @@ client.on('interactionCreate', async interaction => {
   else if (interaction.commandName === 'skip' || interaction.commandName === 'fs') {
     // get voice connection of whoever sent the message
     const connection = getVoiceConnection(interaction.guildId);
-    // stop audio play
-    player.stop();
-    // // call garbage collection
-    // garbageCollector(queue[0].path, 0);
-    // // play next song
-    // playNext(connection);
+    // stop audio play causes player to go into idle state
+    players[interaction.guildId].player.stop();
     // create skip message
     const skipEmbed = new EmbedBuilder()
       .setColor(0x0099FF)
@@ -422,11 +420,12 @@ client.on('interactionCreate', async interaction => {
 
   // repeat command
   else if (interaction.commandName === 'repeat' || interaction.commandName === 'r') {
+    let player = players[interaction.guildId];
     // flip repeat boolean
-    repeat = !repeat;
+    player.repeat = !player.repeat;
 
     // if repeat is now on
-    if (repeat) {
+    if (player.repeat) {
       // generate repeat message
       const repeatEmbed = new EmbedBuilder()
         .setColor(0x0099FF)

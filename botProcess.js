@@ -1,7 +1,3 @@
-// TODO
-// ADD COMMENTS TO CODE 
-// MAKE INSTANCED VARIABLES AND PLAYERS PER GUILD
-
 // library setup
 
 const youtubedl = require('youtube-dl-exec');
@@ -18,7 +14,6 @@ const {
 } = require('discord.js');
 
 const {
-  getVoiceConnections,
   VoiceConnectionStatus,
   AudioPlayerStatus,
   joinVoiceChannel,
